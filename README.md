@@ -21,7 +21,6 @@ This project has been refactored to adhere to modern Python development standard
 ├── main.py
 ├── README.md
 ├── requirements.txt
-├── Issue_with_api.md
 ├── docker/
 │   └── trino-catalog/
 │       └── postgresql.properties
