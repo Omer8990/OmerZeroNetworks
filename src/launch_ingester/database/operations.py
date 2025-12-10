@@ -183,6 +183,7 @@ def update_launch_aggregates() -> None:
         WITH launch_metrics AS (
             SELECT
                 (launch_data->>'success')::boolean AS success,
+                (launch_data->>'launch_delay_seconds')::double precision AS launch_delay_seconds,
                 
                 -- Extract total payload mass per launch
                 (SELECT SUM((p->>'mass_kg')::float)
@@ -195,6 +196,7 @@ def update_launch_aggregates() -> None:
             total_launches,
             successful_launches,
             average_payload_mass_kg,
+            average_launch_delay_seconds,
             last_updated_utc
         )
         SELECT
@@ -202,6 +204,7 @@ def update_launch_aggregates() -> None:
             COUNT(*) AS total_launches,
             SUM(CASE WHEN success THEN 1 ELSE 0 END) AS successful_launches,
             AVG(total_mass_kg) AS average_payload_mass_kg,
+            AVG(launch_delay_seconds) AS average_launch_delay_seconds,
             NOW() AS last_updated_utc
         FROM
             launch_metrics
@@ -209,6 +212,7 @@ def update_launch_aggregates() -> None:
             total_launches = EXCLUDED.total_launches,
             successful_launches = EXCLUDED.successful_launches,
             average_payload_mass_kg = EXCLUDED.average_payload_mass_kg,
+            average_launch_delay_seconds = EXCLUDED.average_launch_delay_seconds,
             last_updated_utc = EXCLUDED.last_updated_utc;
     """
     

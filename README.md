@@ -27,7 +27,7 @@ This project has been refactored to adhere to modern Python development standard
 ├── sql/
 │   ├── create_launch_aggregates_table.sql
 │   ├── create_raw_launches_table.sql
-│   └── launch_performance_over_time.sql
+│   └── 01_launch_performance_over_time.sql
 └── src/
     └── launch_ingester/
         ├── __init__.py
@@ -132,7 +132,7 @@ In addition to ad-hoc queries, you can run pre-defined analysis queries located 
 
 ### Launch Performance Over Time
 
-To analyze the year-over-year launch success rate, you can run the `launch_performance_over_time.sql` query.
+To analyze the year-over-year launch success rate, you can run the `01_launch_performance_over_time.sql` query.
 
 This can be done in two ways:
 
@@ -141,21 +141,39 @@ This can be done in two ways:
         ```bash
         docker exec -it trino trino
         ```
-    *   Copy the content of `sql/launch_performance_over_time.sql` and paste it into the Trino CLI.
+    *   Copy the content of `sql/01_launch_performance_over_time.sql` and paste it into the Trino CLI.
 
 2.  **Executing the query directly from the command line:**
     This is the recommended approach for running queries from files.
 
     ```bash
-    docker exec -i trino trino --execute "$(cat sql/launch_performance_over_time.sql)"
+    docker exec -i trino trino --execute "$(cat sql/01_launch_performance_over_time.sql)"
     ```
 
 ### Top Payload Masses
 
-To find the top 5 launches with the heaviest total payload mass, you can run the `top_payload_mass.sql` query.
+To find the top 5 launches with the heaviest total payload mass, you can run the `02_top_payload_mass.sql` query.
 
 ```bash
-docker exec -i trino trino --execute "$(cat sql/top_payload_mass.sql)"
+docker exec -i trino trino --execute "$(cat sql/02_top_payload_mass.sql)"
+```
+
+### Average Launch Delay
+
+To see the average and max delay between the first engine fire and the actual launch, grouped by year, run:
+
+```bash
+docker exec -i trino trino --execute "$(cat sql/03_average_launch_delay.sql)"
+```
+
+### Launch Site Utilization
+
+To see how many launches have occurred at each launch site and the average payload per site, run:
+
+> **Note**: The launchpad names are not available in the ingested data, so the query uses the launchpad IDs.
+
+```bash
+docker exec -i trino trino --execute "$(cat sql/04_launch_site_utilization.sql)"
 ```
 
 ## Stop the services

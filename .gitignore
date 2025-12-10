@@ -75,6 +75,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+infer_explanation.md
 
 # IPython
 profile_default/

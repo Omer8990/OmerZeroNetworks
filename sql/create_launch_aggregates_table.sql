@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS launch_aggregates (
     total_launches BIGINT,
     successful_launches BIGINT,
     average_payload_mass_kg DOUBLE PRECISION,
+    average_launch_delay_seconds DOUBLE PRECISION,
     last_updated_utc TIMESTAMP WITH TIME ZONE
 );

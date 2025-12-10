@@ -82,6 +82,22 @@ def run_ingestion() -> None:
 
         logger.info(f"Found {len(launches_to_ingest)} new launches to ingest. Inserting into database...")
         for i, launch in enumerate(launches_to_ingest, 1):
+            # Calculate launch delay before inserting
+            if launch.static_fire_date_utc and launch.date_utc:
+                try:
+                    static_fire_time = datetime.fromisoformat(launch.static_fire_date_utc.replace("Z", "+00:00"))
+                    launch_time = datetime.fromisoformat(launch.date_utc.replace("Z", "+00:00"))
+                    delay = launch_time - static_fire_time
+                    launch.launch_delay_seconds = int(delay.total_seconds())
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        f"Could not calculate launch delay for {launch.id}: {e}. "
+                        f"static_fire_date_utc: {launch.static_fire_date_utc}, date_utc: {launch.date_utc}"
+                    )
+                    launch.launch_delay_seconds = None
+            else:
+                launch.launch_delay_seconds = None
+
             logger.debug(f"Inserting launch {i}/{len(launches_to_ingest)}: {launch.name} ({launch.id})")
             insert_launch_data(launch.dict())
 
