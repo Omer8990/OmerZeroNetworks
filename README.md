@@ -13,7 +13,7 @@ This project has been refactored to adhere to modern Python development standard
 - **Clear Entry Point**: The application logic is separated from the execution entry point (`main.py`).
 
 ## Project Structure
-
+```
 .
 ├── .gitignore
 ├── .env
@@ -46,7 +46,7 @@ This project has been refactored to adhere to modern Python development standard
         └── processors/
             ├── __init__.py
             └── ingestion.py
-
+```
 
 ## Design Choices
 
