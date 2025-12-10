@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS raw_launches (
+    id TEXT PRIMARY KEY,
+    launch_data JSONB,
+    ingested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
