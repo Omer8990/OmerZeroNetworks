@@ -14,27 +14,39 @@ This project has been refactored to adhere to modern Python development standard
 
 ## Project Structure
 
-The `src` directory is organized as a Python package with the following structure:
+.
+├── .gitignore
+├── .env
+├── docker-compose.yml
+├── main.py
+├── README.md
+├── requirements.txt
+├── Issue_with_api.md
+├── docker/
+│   └── trino-catalog/
+│       └── postgresql.properties
+├── sql/
+│   ├── create_launch_aggregates_table.sql
+│   ├── create_raw_launches_table.sql
+│   └── launch_performance_over_time.sql
+└── src/
+    └── launch_ingester/
+        ├── __init__.py
+        ├── api/
+        │   ├── __init__.py
+        │   └── client.py
+        ├── config.py
+        ├── database/
+        │   ├── __init__.py
+        │   └── operations.py
+        ├── main.py
+        ├── models/
+        │   ├── __init__.py
+        │   └── launch.py
+        └── processors/
+            ├── __init__.py
+            └── ingestion.py
 
-```
-src/
-└───launch_ingester/
-    ├───__init__.py         # Initializes package-wide logging.
-    ├───main.py             # The application's main entry point.
-    ├───config.py           # Handles loading and validating environment variables.
-    ├───api/
-    │   ├───__init__.py
-    │   └───client.py       # SpaceX API client for fetching launch data.
-    ├───database/
-    │   ├───__init__.py
-    │   └───operations.py   # Database connection management and CRUD operations.
-    ├───models/
-    │   ├───__init__.py
-    │   └───launch.py       # Pydantic models for SpaceX launch and payload data.
-    └───processors/
-        ├───__init__.py
-        └───ingestion.py    # Core logic for orchestrating data ingestion.
-```
 
 ## Design Choices
 
@@ -114,6 +126,38 @@ You can query the data from PostgreSQL using the Trino CLI.
    ```
 
    To exit the Trino CLI, type `quit`.
+
+## Analyzing the Data
+
+In addition to ad-hoc queries, you can run pre-defined analysis queries located in the `sql/` directory.
+
+### Launch Performance Over Time
+
+To analyze the year-over-year launch success rate, you can run the `launch_performance_over_time.sql` query.
+
+This can be done in two ways:
+
+1.  **Pasting the query into the Trino CLI:**
+    *   Access the Trino CLI:
+        ```bash
+        docker exec -it trino trino
+        ```
+    *   Copy the content of `sql/launch_performance_over_time.sql` and paste it into the Trino CLI.
+
+2.  **Executing the query directly from the command line:**
+    This is the recommended approach for running queries from files.
+
+    ```bash
+    docker exec -i trino trino --execute "$(cat sql/launch_performance_over_time.sql)"
+    ```
+
+### Top Payload Masses
+
+To find the top 5 launches with the heaviest total payload mass, you can run the `top_payload_mass.sql` query.
+
+```bash
+docker exec -i trino trino --execute "$(cat sql/top_payload_mass.sql)"
+```
 
 ## Stop the services
 
