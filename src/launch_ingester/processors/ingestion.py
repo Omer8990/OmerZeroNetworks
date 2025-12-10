@@ -16,6 +16,8 @@ from launch_ingester.database.operations import (
     create_raw_launches_table,
     get_latest_launch_date,
     insert_launch_data,
+    create_launch_aggregates_table,
+    update_launch_aggregates,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ def run_ingestion() -> None:
     try:
         # 1. Setup phase
         create_raw_launches_table()
+        create_launch_aggregates_table()
         latest_date = get_latest_launch_date()
 
         # 2. Determine API query parameters
@@ -72,6 +75,9 @@ def run_ingestion() -> None:
         # 5. Insert data into the database
         if not launches_to_ingest:
             logger.info("No new launches to ingest. Process complete.")
+            # Even if there are no new launches, we should update the aggregates
+            # in case the underlying data has changed for some reason.
+            update_launch_aggregates()
             return
 
         logger.info(f"Found {len(launches_to_ingest)} new launches to ingest. Inserting into database...")
@@ -80,6 +86,9 @@ def run_ingestion() -> None:
             insert_launch_data(launch.dict())
 
         logger.info(f"Successfully inserted {len(launches_to_ingest)} new launch records.")
+
+        # 6. Update aggregation table
+        update_launch_aggregates()
 
     except Exception as e:
         logger.critical(f"An unhandled error occurred during the ingestion process: {e}", exc_info=True)
