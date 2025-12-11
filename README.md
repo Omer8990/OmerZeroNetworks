@@ -75,7 +75,7 @@ The platform is composed of a few key services orchestrated by Docker Compose. T
 
 ### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/Omer8990/OmerZeroNetworks
 cd OmerHaimovichZeroNetworksHomeAssignment
 ```
 
