@@ -1,203 +1,230 @@
-# Zero Networks Home Assignment
+# SpaceX Launch Data Ingestion & Analytics Platform
 
-This project ingests launch data from the SpaceX API and stores it in a PostgreSQL database. It's designed with a professional Python package structure and implements a robust backfill and incremental loading strategy.
+[![Python Version](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://github.com/psf/black)
+[![Type Checked](https://img.shields.io/badge/Type%20Checked-MyPy-blue.svg)](http://mypy-lang.org/)
 
-## Code Quality and Best Practices
+A robust, production-ready data engineering project that ingests SpaceX launch data, stores it in PostgreSQL, and enables large-scale analytics with Trino.
 
-This project has been refactored to adhere to modern Python development standards:
+This pipeline is designed with an **ELT (Extract, Load, Transform)** philosophy, featuring an intelligent incremental loading strategy, data validation, and automated aggregation.
 
-- **Structured Package**: The code is organized into a clear package structure within `src/launch_ingester`.
-- **Logging**: All operations are logged using Python's `logging` module, providing clear visibility into the ingestion process. `print()` statements have been removed.
-- **Type Hinting**: The code is fully type-hinted for improved readability and maintainability.
-- **Connection Management**: Database connections are handled safely and efficiently using context managers.
-- **Clear Entry Point**: The application logic is separated from the execution entry point (`main.py`).
+## Architecture Overview
 
-## Project Structure
+The platform is composed of a few key services orchestrated by Docker Compose. The ingestion script fetches data from the SpaceX API, loads it into a raw data table in PostgreSQL, and then triggers a transformation within the database to generate analytical aggregates. Trino provides a federated query layer on top of PostgreSQL for high-performance analytics.
+
 ```
-.
-├── .gitignore
-├── .env
-├── docker-compose.yml
-├── main.py
-├── README.md
-├── requirements.txt
-├── docker/
-│   └── trino-catalog/
-│       └── postgresql.properties
-├── sql/
-│   ├── create_launch_aggregates_table.sql
-│   ├── create_raw_launches_table.sql
-│   └── 01_launch_performance_over_time.sql
-└── src/
-    └── launch_ingester/
-        ├── __init__.py
-        ├── api/
-        │   ├── __init__.py
-        │   └── client.py
-        ├── config.py
-        ├── database/
-        │   ├── __init__.py
-        │   └── operations.py
-        ├── main.py
-        ├── models/
-        │   ├── __init__.py
-        │   └── launch.py
-        └── processors/
-            ├── __init__.py
-            └── ingestion.py
++------------------+      +-------------------------+      +---------------------+
+|                  |      |                         |      |                     |
+|  SpaceX v4 API   +------>  Python Ingestion Service <------>   PostgreSQL DB       |
+|                  |      |    (ELT Script)         |      | (Raw & Agg Tables)  |
++------------------+      +-------------------------+      +----------^----------+
+                                     |                             |
+                                     | (SQL Queries)               |
+                                     v                             |
++------------------------------------------------------------------+
+|   Trino (Federated Query Engine)                                 |
+|                                                                  |
+|   +-----------------------+      +------------------------+      |
+|   |  Business Intelligence|      |                        |      |
+|   |    (e.g., DataGrip)   |------>                        <------|  Data Analysts      |
+|   +-----------------------+      |    Trino Coordinator   |      |  (Ad-hoc SQL)       |
+|                                  |                        |      |                     |
+|                                  +------------------------+      +---------------------+
++------------------------------------------------------------------+
 ```
 
-## Design Choices
+---
 
-**Assumption regarding 'Latest Data'**: The requirements requested fetching "latest data" while also requiring "Year-over-Year" SQL analysis. Fetching only the single latest launch would make the SQL analysis impossible.
-**Decision**: The pipeline is designed to perform an initial historical backfill of all past launches to enable analytics. Subsequent runs operate in an incremental mode, fetching only launches that have occurred since the most recent launch stored in the database. This satisfies both requirements.
+## Key Features
 
-## Prerequisites
+*   **Automated ELT Pipeline**: Implements a full Extract, Load, Transform workflow.
+*   **Intelligent Ingestion Strategy**:
+    *   **Automatic Backfill**: On the first run, it performs a full historical backfill of all past SpaceX launches.
+    *   **Incremental Loading**: On subsequent runs, it only fetches launches newer than the latest data in the database, ensuring efficiency.
+*   **Resilient & Robust**:
+    *   **API Bug Workaround**: Includes client-side filtering to handle known inconsistencies in the SpaceX API (e.g., filtering `upcoming` launches).
+    *   **Graceful Validation**: Uses Pydantic for data validation but is designed to log and skip individual malformed records rather than failing the entire pipeline, prioritizing robustness.
+*   **Idempotent & Safe**: Database operations are idempotent. Inserts use `ON CONFLICT DO NOTHING`, and table creation scripts use `IF NOT EXISTS`, making pipeline runs safe to repeat.
+*   **Data Transformation in the Warehouse**: Post-load transformation is handled by SQL within PostgreSQL, following modern ELT best practices. This includes:
+    *   **Data Enrichment**: Calculating `launch_delay_seconds` on the fly.
+    *   **Automated Aggregation**: Updating a summary table (`launch_aggregates`) after each run.
+*   **Analytics-Ready**: Integrated with **Trino**, allowing users to run fast, federated queries on the PostgreSQL data, suitable for BI tools and ad-hoc analysis.
+*   **Professional Codebase**:
+    *   Fully type-hinted and formatted with Black.
+    *   Comprehensive logging across all services.
+    *   Clean, modular project structure.
 
-- Docker & Docker Compose
-- Python 3.11
+---
 
-## Setup Instructions
+## Technology Stack
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd OmerHaimovichZeroNetworksHomeAssignment
-   ```
+*   **Orchestration**: Docker, Docker Compose
+*   **Programming Language**: Python 3.11
+*   **Data Ingestion**: `requests` for API communication, `Pydantic` for data validation.
+*   **Database**: PostgreSQL 16
+*   **Data Warehouse / Query Engine**: Trino
+*   **Python Libraries**: See `requirements.txt`
 
-2. **Environment Variables:**
-   The project uses a `.env` file to manage environment variables. Make sure it has the following content. Note the `API_URL` is pointed to the `v4/launches/query` endpoint.
-   ```
-   POSTGRES_USER=test_user
-   POSTGRES_PASSWORD=test_password
-   POSTGRES_DB=test_db
-   POSTGRES_HOST=localhost
-   POSTGRES_PORT=5432
-   API_URL=https://api.spacexdata.com/v4/launches/query
-   ```
+---
 
-3. **Install Python dependencies:**
-   It is recommended to use a virtual environment.
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
+## Setup and Configuration
 
-4. **Start the services:**
-   This will start the PostgreSQL and Trino containers in the background.
-   ```bash
-   docker-compose up -d
-   ```
-   Wait for the services to be healthy. You can check the status with `docker-compose ps`.
+### Prerequisites
+*   Docker & Docker Compose
+*   Python 3.11+
+*   An internet connection
 
-## Run the Ingestion
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd OmerHaimovichZeroNetworksHomeAssignment
+```
 
-To fetch SpaceX launch data, run the following command from the root of the project:
+### 2. Configure Environment Variables
+Create a `.env` file in the project root. The application reads database credentials and API settings from this file.
+
+```dotenv
+# .env
+POSTGRES_USER=test_user
+POSTGRES_PASSWORD=test_password
+POSTGRES_DB=test_db
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+API_URL=https://api.spacexdata.com/v4/launches/query
+```
+
+### 3. Install Dependencies
+It's highly recommended to use a Python virtual environment.
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 4. Launch Services
+This command starts the PostgreSQL and Trino containers in detached mode.
+```bash
+docker-compose up -d
+```
+You can check the health of the services with `docker-compose ps`. Wait for both to report `(healthy)`.
+
+---
+
+## Running the Pipeline
+
+To run the full ELT process, execute the main application module from the project root.
 
 ```bash
 PYTHONPATH=./src python3 -m launch_ingester.main
 ```
+*   **First Run (Backfill)**: This will fetch all historical launch data from the SpaceX API. It may take a few minutes. You will see detailed logs of the process.
+*   **Subsequent Runs (Incremental)**: This will only fetch new launch data. If no new data is found, the process will complete quickly.
 
-**Note on `PYTHONPATH`**: We prepend `PYTHONPATH=./src` to the command to temporarily add the `src` directory to Python's path. This allows the interpreter to correctly find and import the `launch_ingester` package, which is necessary for the refactored project structure.
+The `PYTHONPATH=./src` prefix is required to ensure the Python interpreter can correctly locate the `launch_ingester` package.
 
-- **First Run**: This will perform a "backfill", fetching all past launches. This may take a few moments.
-- **Subsequent Runs**: This will perform an "incremental load", fetching only launches that are newer than the latest one in your database.
+---
 
-## Verify the Data
+## Querying and Analytics
 
-**Connecting to Trino via External Tools (e.g., DataGrip)**
+Data can be queried directly from PostgreSQL, but the recommended approach is to use the powerful Trino query engine, which is accessible on port `8080`.
 
-For a more robust query experience, you can connect to the Trino coordinator directly from SQL clients like DataGrip.
-Use the following connection details:
-
+### Connecting a SQL Client (Recommended)
+Connect your favorite SQL client (e.g., DataGrip, DBeaver) to Trino with these settings:
 -   **Host**: `localhost`
--   **Port**: `8080` (default Trino UI/API port)
--   **User**: `trino` (default Trino user)
+-   **Port**: `8080`
+-   **User**: `trino` (or any username)
 -   **Catalog**: `postgresql`
 -   **Schema**: `public`
--   **Database (optional, for some clients)**: `test_db` (or leave empty)
 
-You can then query the `postgresql.public.raw_launches` and `postgresql.public.launch_aggregates` tables.
+You can then explore and query the following tables:
+-   `raw_launches`: Contains the raw, unmodified JSON data for every launch.
+-   `launch_aggregates`: A summary table with key metrics, updated after every ingestion run.
 
-You can also query the data from PostgreSQL using the Trino CLI.
+### Using the Trino CLI
+For quick ad-hoc queries, you can use the Trino CLI inside the Docker container.
 
-1. **Access the Trino CLI:**
-   ```bash
-   docker exec -it trino trino
-   ```
-
-2. **Query the data:**
-   Once in the Trino CLI, you can check the number of launches ingested and verify the aggregate table.
-   ```sql
-   SELECT count(*) FROM postgresql.public.raw_launches;
-   SELECT count(*) FROM postgresql.public.launch_aggregates;
-   ```
-
-   To see the details of a specific raw launch:
-   ```sql
-   SELECT * FROM postgresql.public.raw_launches LIMIT 10;
-   ```
-   To see the details of a specific aggregate entry:
-   ```sql
-   SELECT * FROM postgresql.public.launch_aggregates LIMIT 10;
-   ```
-
-   To exit the Trino CLI, type `quit`.
-
-## Analyzing the Data
-
-In addition to ad-hoc queries, you can run pre-defined analysis queries located in the `sql/` directory.
-
-### Launch Performance Over Time
-
-To analyze the year-over-year launch success rate, you can run the `01_launch_performance_over_time.sql` query.
-
-This can be done in two ways:
-
-1.  **Pasting the query into the Trino CLI:**
-    *   Access the Trino CLI:
-        ```bash
-        docker exec -it trino trino
-        ```
-    *   Copy the content of `sql/01_launch_performance_over_time.sql` and paste it into the Trino CLI.
-
-2.  **Executing the query directly from the command line:**
-    This is the recommended approach for running queries from files.
-
+1.  **Access the CLI:**
     ```bash
-    docker exec -i trino trino --execute "$(cat sql/01_launch_performance_over_time.sql)"
+    docker exec -it trino trino
     ```
 
-### Top Payload Masses
+2.  **Run Queries:**
+    Remember to fully qualify your table names (`<catalog>.<schema>.<table>`).
+    ```sql
+    -- Check raw data count
+    SELECT count(*) FROM postgresql.public.raw_launches;
 
-To find the top 5 launches with the heaviest total payload mass, you can run the `02_top_payload_mass.sql` query.
+    -- View aggregated metrics
+    SELECT * FROM postgresql.public.launch_aggregates;
+
+    -- See 10 most recent launches
+    SELECT
+        launch_data ->> 'name' AS name,
+        launch_data ->> 'date_utc' AS date
+    FROM postgresql.public.raw_launches
+    ORDER BY launch_data ->> 'date_unix' DESC
+    LIMIT 10;
+    ```
+
+### Running Pre-defined SQL Analysis
+The `sql/` directory contains sample analytical queries. You can execute them directly:
 
 ```bash
+# Get year-over-year launch performance
+docker exec -i trino trino --execute "$(cat sql/01_launch_performance_over_time.sql)"
+
+# Find the top 5 launches by payload mass
 docker exec -i trino trino --execute "$(cat sql/02_top_payload_mass.sql)"
-```
 
-### Average Launch Delay
-
-To see the average and max delay between the first engine fire and the actual launch, grouped by year, run:
-
-```bash
+# Analyze launch delay patterns
 docker exec -i trino trino --execute "$(cat sql/03_average_launch_delay.sql)"
 ```
 
-### Launch Site Utilization
+---
 
-To see how many launches have occurred at each launch site and the average payload per site, run:
+## Design Deep Dive
 
-> **Note**: The launchpad names are not available in the ingested data, so the query uses the launchpad IDs.
+### ELT (Extract, Load, Transform)
+This project follows an ELT paradigm. Raw data is first loaded into the `raw_launches` table with minimal processing. Transformations then run *inside the database*, which is highly scalable. The main transformation is the `update_launch_aggregates` function, which reads from the raw table and populates the aggregate table.
 
-```bash
-docker exec -i trino trino --execute "$(cat sql/04_launch_site_utilization.sql)"
+### Data Storage: JSONB
+Raw launch data is stored in a `JSONB` column in PostgreSQL. This approach provides:
+-   **Schema Flexibility**: No data is lost, even if the API adds new fields. The pipeline will not break.
+-   **Performance**: `JSONB` is indexed and allows for efficient querying of nested fields.
+
+### Idempotency
+Every part of the pipeline is designed to be safely re-runnable.
+-   **Ingestion**: `ON CONFLICT (id) DO NOTHING` prevents duplicate launch records.
+-   **Aggregation**: `ON CONFLICT (id) DO UPDATE` ensures the aggregate table is always up-to-date.
+-   **Table Creation**: `CREATE TABLE IF NOT EXISTS` prevents errors on subsequent runs.
+
+---
+
+## Project Structure
+```
+.
+├── docker/                  # Docker configurations
+│   └── trino-catalog/       # Trino catalog properties
+├── sql/                     # SQL scripts for analysis and table creation
+├── src/
+│   └── launch_ingester/     # Main Python package
+│       ├── api/             # SpaceX API client
+│       ├── database/        # PostgreSQL database operations
+│       ├── models/          # Pydantic data models
+│       ├── processors/      # Core ingestion logic (backfill/incremental)
+│       ├── config.py        # Configuration loading
+│       └── main.py          # Application entry point
+├── .env                     # Environment variable definitions (user-created)
+├── docker-compose.yml       # Service orchestration
+├── main.py                  # Project root entry point
+└── requirements.txt         # Python dependencies
 ```
 
-## Stop the services
+---
 
-To stop the Docker containers, run:
+## Stopping Services
+To stop all running Docker containers, use:
 ```bash
 docker-compose down
 ```
+To remove the persistent PostgreSQL data, add the `-v` flag: `docker-compose down -v`.
