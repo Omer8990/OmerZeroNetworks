@@ -2,7 +2,6 @@
 
 [![Python Version](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://github.com/psf/black)
-[![Type Checked](https://img.shields.io/badge/Type%20Checked-MyPy-blue.svg)](http://mypy-lang.org/)
 
 A robust, production-ready data engineering project that ingests SpaceX launch data, stores it in PostgreSQL, and enables large-scale analytics with Trino.
 
