@@ -106,7 +106,21 @@ PYTHONPATH=./src python3 -m launch_ingester.main
 
 ## Verify the Data
 
-You can query the data from PostgreSQL using the Trino CLI.
+**Connecting to Trino via External Tools (e.g., DataGrip)**
+
+For a more robust query experience, you can connect to the Trino coordinator directly from SQL clients like DataGrip.
+Use the following connection details:
+
+-   **Host**: `localhost`
+-   **Port**: `8080` (default Trino UI/API port)
+-   **User**: `trino` (default Trino user)
+-   **Catalog**: `postgresql`
+-   **Schema**: `public`
+-   **Database (optional, for some clients)**: `test_db` (or leave empty)
+
+You can then query the `postgresql.public.raw_launches` and `postgresql.public.launch_aggregates` tables.
+
+You can also query the data from PostgreSQL using the Trino CLI.
 
 1. **Access the Trino CLI:**
    ```bash
@@ -114,14 +128,19 @@ You can query the data from PostgreSQL using the Trino CLI.
    ```
 
 2. **Query the data:**
-   Once in the Trino CLI, you can check the number of launches ingested.
+   Once in the Trino CLI, you can check the number of launches ingested and verify the aggregate table.
    ```sql
    SELECT count(*) FROM postgresql.public.raw_launches;
+   SELECT count(*) FROM postgresql.public.launch_aggregates;
    ```
 
-   To see the details of a specific launch:
+   To see the details of a specific raw launch:
    ```sql
    SELECT * FROM postgresql.public.raw_launches LIMIT 10;
+   ```
+   To see the details of a specific aggregate entry:
+   ```sql
+   SELECT * FROM postgresql.public.launch_aggregates LIMIT 10;
    ```
 
    To exit the Trino CLI, type `quit`.

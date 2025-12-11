@@ -39,11 +39,6 @@ def query_launches(since_date: Optional[str] = None) -> List[Launch]:
 
     base_query = {
         "query": {
-            # NOTE: Filtering for `"upcoming": False` is intentionally omitted.
-            # The v4 and v5 APIs have a bug where this filter causes pagination
-            # to return an incomplete set of results. Filtering is handled
-            # client-side in the ingestion processor instead.
-            # "upcoming": False
         },
         "options": {
             "page": page,
@@ -80,6 +75,7 @@ def query_launches(since_date: Optional[str] = None) -> List[Launch]:
             try:
                 all_launches.append(Launch(**launch_data))
             except Exception as e:
+                # I don't raise the error on purpose here - prioritizing robustness over correctness
                 launch_id = launch_data.get("id", "N/A")
                 logger.error(f"Pydantic validation failed for launch ID {launch_id}: {e}")
 
