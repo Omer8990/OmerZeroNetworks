@@ -101,3 +101,9 @@ class Launch(BaseModel):
     tbd: bool
     launch_library_id: Optional[str] = None
     id: str
+    
+    # Calculated field for launch delay.
+    # This value is inferred from the difference between date_utc and static_fire_date_utc,
+    # as the SpaceX API does not provide an official "scheduled launch date".
+    # It can be None if the static fire date is not available.
+    launch_delay_seconds: Optional[int] = None

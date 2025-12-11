@@ -16,6 +16,8 @@ from launch_ingester.database.operations import (
     create_raw_launches_table,
     get_latest_launch_date,
     insert_launch_data,
+    create_launch_aggregates_table,
+    update_launch_aggregates,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ def run_ingestion() -> None:
     try:
         # 1. Setup phase
         create_raw_launches_table()
+        create_launch_aggregates_table()
         latest_date = get_latest_launch_date()
 
         # 2. Determine API query parameters
@@ -72,14 +75,36 @@ def run_ingestion() -> None:
         # 5. Insert data into the database
         if not launches_to_ingest:
             logger.info("No new launches to ingest. Process complete.")
+            # Even if there are no new launches, we should update the aggregates
+            # in case the underlying data has changed for some reason.
+            update_launch_aggregates()
             return
 
         logger.info(f"Found {len(launches_to_ingest)} new launches to ingest. Inserting into database...")
         for i, launch in enumerate(launches_to_ingest, 1):
+            # Calculate launch delay before inserting
+            if launch.static_fire_date_utc and launch.date_utc:
+                try:
+                    static_fire_time = datetime.fromisoformat(launch.static_fire_date_utc.replace("Z", "+00:00"))
+                    launch_time = datetime.fromisoformat(launch.date_utc.replace("Z", "+00:00"))
+                    delay = launch_time - static_fire_time
+                    launch.launch_delay_seconds = int(delay.total_seconds())
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        f"Could not calculate launch delay for {launch.id}: {e}. "
+                        f"static_fire_date_utc: {launch.static_fire_date_utc}, date_utc: {launch.date_utc}"
+                    )
+                    launch.launch_delay_seconds = None
+            else:
+                launch.launch_delay_seconds = None
+
             logger.debug(f"Inserting launch {i}/{len(launches_to_ingest)}: {launch.name} ({launch.id})")
             insert_launch_data(launch.dict())
 
         logger.info(f"Successfully inserted {len(launches_to_ingest)} new launch records.")
+
+        # 6. Update aggregation table
+        update_launch_aggregates()
 
     except Exception as e:
         logger.critical(f"An unhandled error occurred during the ingestion process: {e}", exc_info=True)

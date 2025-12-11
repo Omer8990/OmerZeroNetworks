@@ -150,3 +150,76 @@ def insert_launch_data(launch_data: Dict) -> None:
     except psycopg2.Error as e:
         logger.error(f"Failed to insert launch data for ID {launch_id}: {e}")
         raise
+
+def create_launch_aggregates_table() -> None:
+    """Creates the `launch_aggregates` table in the database if it does not exist."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sql_file_path = os.path.join(current_dir, "../../../sql/create_launch_aggregates_table.sql")
+    
+    logger.info("Ensuring 'launch_aggregates' table exists...")
+    try:
+        with get_db_connection() as conn, get_cursor(conn) as cur:
+            logger.debug(f"Reading table schema from {sql_file_path}")
+            with open(sql_file_path, "r") as f:
+                cur.execute(f.read())
+            logger.info("'launch_aggregates' table is ready.")
+    except (IOError, psycopg2.Error) as e:
+        logger.error(f"Failed to create 'launch_aggregates' table: {e}")
+        raise
+
+def update_launch_aggregates() -> None:
+    """
+    Calculates aggregated launch metrics and updates the `launch_aggregates` table.
+
+    This function computes the following metrics from the `raw_launches` table:
+    - Total number of launches.
+    - Total number of successful launches.
+    - Average payload mass (in kg).
+
+    The results are then inserted or updated into the `launch_aggregates` table.
+    """
+    logger.info("Updating launch aggregates table...")
+    aggregation_query = """
+        WITH launch_metrics AS (
+            SELECT
+                (launch_data->>'success')::boolean AS success,
+                (launch_data->>'launch_delay_seconds')::double precision AS launch_delay_seconds,
+                
+                -- Extract total payload mass per launch
+                (SELECT SUM((p->>'mass_kg')::float)
+                 FROM jsonb_array_elements(launch_data->'payloads') AS p) AS total_mass_kg
+            FROM
+                raw_launches
+        )
+        INSERT INTO launch_aggregates (
+            id,
+            total_launches,
+            successful_launches,
+            average_payload_mass_kg,
+            average_launch_delay_seconds,
+            last_updated_utc
+        )
+        SELECT
+            1 AS id,
+            COUNT(*) AS total_launches,
+            SUM(CASE WHEN success THEN 1 ELSE 0 END) AS successful_launches,
+            AVG(total_mass_kg) AS average_payload_mass_kg,
+            AVG(launch_delay_seconds) AS average_launch_delay_seconds,
+            NOW() AS last_updated_utc
+        FROM
+            launch_metrics
+        ON CONFLICT (id) DO UPDATE SET
+            total_launches = EXCLUDED.total_launches,
+            successful_launches = EXCLUDED.successful_launches,
+            average_payload_mass_kg = EXCLUDED.average_payload_mass_kg,
+            average_launch_delay_seconds = EXCLUDED.average_launch_delay_seconds,
+            last_updated_utc = EXCLUDED.last_updated_utc;
+    """
+    
+    try:
+        with get_db_connection() as conn, get_cursor(conn) as cur:
+            cur.execute(aggregation_query)
+            logger.info("Successfully updated launch aggregates.")
+    except psycopg2.Error as e:
+        logger.error(f"Failed to update launch aggregates: {e}")
+        raise
