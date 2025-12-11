@@ -132,9 +132,9 @@ Data can be queried directly from PostgreSQL, but the recommended approach is to
 Connect your favorite SQL client (e.g., DataGrip, DBeaver) to Trino with these settings:
 -   **Host**: `localhost`
 -   **Port**: `8080`
--   **User**: `trino` (or any username)
--   **Catalog**: `postgresql`
--   **Schema**: `public`
+-   **User**: `admin` 
+-   **URL**: `jdbc:trino://localhost:8080`
+
 
 You can then explore and query the following tables:
 -   `raw_launches`: Contains the raw, unmodified JSON data for every launch.
@@ -157,13 +157,6 @@ For quick ad-hoc queries, you can use the Trino CLI inside the Docker container.
     -- View aggregated metrics
     SELECT * FROM postgresql.public.launch_aggregates;
 
-    -- See 10 most recent launches
-    SELECT
-        launch_data ->> 'name' AS name,
-        launch_data ->> 'date_utc' AS date
-    FROM postgresql.public.raw_launches
-    ORDER BY launch_data ->> 'date_unix' DESC
-    LIMIT 10;
     ```
 
 ### Running Pre-defined SQL Analysis
@@ -178,6 +171,9 @@ docker exec -i trino trino --execute "$(cat sql/02_top_payload_mass.sql)"
 
 # Analyze launch delay patterns
 docker exec -i trino trino --execute "$(cat sql/03_average_launch_delay.sql)"
+
+# Find the launch site utilization stats
+docker exec -i trino trino --execute "$(cat sql/04_launch_site_utilization.sql)"
 ```
 
 ---
